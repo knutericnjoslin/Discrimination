@@ -91,7 +91,7 @@ gamma_l = @(gamma_d, y) ( 1 - gamma_d )/(y - 1) ;
 % ## Solving for gamma_d given market constellation using equation 3.6
 
 gamma_d_optimal = fsolve( @(gamma_d) w_d*( 1 - theta_d_optimal )^N * binom_sum_constructor(B, i, gamma_d)...
-    - (w_l/(y-1))*binom_sum_constructor(B, i, gamma_l(gamma_d,y)), 0.5) ;
+    - (w_l)*binom_sum_constructor(B, i, gamma_l(gamma_d,y)), 0.5) ;
 
 % ## dgamma_d__dw_d
 
@@ -246,7 +246,7 @@ plot(w_d, p_fit)
 hold on
 plot(w_d, theta_optimal(:,1))
 
-diff_approx = theta_optimal(:,1)-transpose(p_fit) % Difference in errors between simulated values and the approximation
+diff_approx = theta_optimal(:,1)-transpose(p_fit); % Difference in errors between simulated values and the approximation
 plot(w_d, diff_approx)
 
 
@@ -306,16 +306,23 @@ gamma_l = @(gamma_d, gamma_h, x, y ) ( 1 - gamma_d - (x-1)*gamma_h )/y ;
 
 gamma_optimal = zeros(151, 3); % Container with dimensions 151x3
 
+w_d_hat = ((1 - theta_optimal(:,3))./(1 - theta_optimal(:,1))).^N * w_l *(binom_sum_constructor(B,i,(1/y))/2);
+index = w_d_hat < transpose(w_d);
+
 % Can not include indifference relation when gamma_h=0!
 for j=1:151;
-    gamma_optimal(j, [1,3]) = lsqnonlin( @(gamma) [w_d(j)*(1 - theta_optimal(j, 1))^N*binom_sum_constructor(B, i, gamma(1))...
-    - w_l*(1 - theta_optimal(j, 3))^N*binom_sum_constructor(B, i, gamma(2)); ...
-    gamma(1) + y*gamma(2) - 1]...
-    , [0.25 0.25] , [0 0], [1 1] );
+    if index(j) == 1
+        gamma_optimal(j, [1,3]) = lsqnonlin( @(gamma) [ w_d(j)*(1 - theta_optimal(j, 1))^N*binom_sum_constructor(B, i, gamma(1))...
+                                                            - w_l*(1 - theta_optimal(j, 3))^N*binom_sum_constructor(B, i, gamma(2)); ...
+                                                        gamma(1) + y*gamma(2) - 1]...
+                                    , [0.25 0.25] , [0 0], [1 1] );
+        gamma_optimal(j, 2) = 0; 
+    else     
+        gamma_optimal(j, :) = [0, 0, 1/y];
+    end;
 end;
 
-gamma_optimal(30:151, 1) = 0;
-gamma_optimal(30:151, 3) = 0.5;
+
 
 % gamma_optimal = zeros( 151, 3); % Container with dimensions 151x3
 % 

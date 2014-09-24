@@ -14,9 +14,9 @@ B=2;
 x=2;
 y=2;
 
-w_h = 0.3651 ;
+w_h = 0.365 ;
 w_l = w_h*(1 - ( 1 - 1/x)^N )/(N/x) ;
-w_d_below = (w_l+0.001):0.001:(w_h+0.005);
+w_d_below = (w_l+0.001):0.001:(w_h+0.01);
 len_w_d_below = length(w_d_below);
 
 % Consider a deviation by one of the firms setting w_h downward to some 
@@ -33,17 +33,36 @@ len_w_d_below = length(w_d_below);
 theta_l = @(theta_d, theta_h, x, y ) ( 1 - theta_d - (x-1).*theta_h )/y ;
 
 % theta_optimal = zeros(len_w_d_below + len_w_d_above, 3);
+apply_all = 1
+theta_optimal = ones(len_w_d_below, 3);
 
-theta_optimal = zeros(len_w_d_below, 3);
+% NEED TO CORRECT THIS SWITCHING CONDITION
+% for l=1:len_w_d_below;
+%      if theta_optimal(l,3) > .0005 % if w_d_below(l) <= w_h
+%         theta_optimal(l,1:2) = lsqnonlin( @(theta) [  w_d_below(l)*binom_sum_constructor(N, i, theta(1))...
+%                                                         - w_l*binom_sum_constructor(N, i, theta_l(theta(1), theta(2), x, y)); ...
+%                                                     w_d_below(l)*binom_sum_constructor(N, i, theta(1))...
+%                                                         - w_h*binom_sum_constructor(N, i, theta(2))]...
+%                                                     , [0.5 0.5], [0 0], [1 1] );
+%         theta_optimal(l, 3) = theta_l( theta_optimal(l,1), theta_optimal(l,2), x, y);
+%     else
+%         theta_optimal(l, 1:2) = lsqnonlin( @(theta) [  w_d_below(l)*binom_sum_constructor(N, i, theta(1))...
+%                                                     - w_h*binom_sum_constructor(N, i, theta(2));...
+%                                                 theta(1) + (x-1)*theta(2) - 1 ]...
+%                                                 , [0.5 0.5], [0 0], [1 1] );
+%         theta_optimal(l, 3) = 0;
+%     end;
+% end;
 
 for l=1:len_w_d_below;
-     if theta_optimal(l,3) > .0005 % if w_d_below(l) <= w_h
+     if apply_all == 1;
         theta_optimal(l,1:2) = lsqnonlin( @(theta) [  w_d_below(l)*binom_sum_constructor(N, i, theta(1))...
                                                         - w_l*binom_sum_constructor(N, i, theta_l(theta(1), theta(2), x, y)); ...
                                                     w_d_below(l)*binom_sum_constructor(N, i, theta(1))...
                                                         - w_h*binom_sum_constructor(N, i, theta(2))]...
                                                     , [0.5 0.5], [0 0], [1 1] );
         theta_optimal(l, 3) = theta_l( theta_optimal(l,1), theta_optimal(l,2), x, y);
+        if theta_optimal(l,3) < 0.0001, apply_all = 0; end; 
     else
         theta_optimal(l, 1:2) = lsqnonlin( @(theta) [  w_d_below(l)*binom_sum_constructor(N, i, theta(1))...
                                                     - w_h*binom_sum_constructor(N, i, theta(2));...
@@ -147,7 +166,7 @@ d_pi__d_wd = - (1 - (1 - theta_optimal(:,1)).^N .* (1 - gamma_optimal(:,1)).^B )
     + N*(1 - transpose(w_d_below)).*(1 - theta_optimal(:,1)).^(N-1) .* (1 - gamma_optimal(:, 1)).^B .*  dtheta_d__dw_d...
     + B*(1 - transpose(w_d_below)).*(1 - theta_optimal(:,1)).^N .* (1 - gamma_optimal(:,1)).^(B-1) .*  transpose(dgamma_d__dw_d) ;
 
-
+plot(w_d_below, d_pi__d_wd)
 
 
 

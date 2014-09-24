@@ -8,35 +8,31 @@
 i=1;
 
 % Market parameters
-N=3;
+N=4;
 B=2;
-x=2;
+x=3;
 y=2;
 
-w_h_value=0.20:0.01:0.40;
+w_h_value=0.10:0.01:0.45;
 w_h_val_length = length(w_h_value);
 
 for k=1:w_h_val_length;
-
-bf = 0;    
     
 w_h = w_h_value(k);     
 w_l = w_h*(1 - ( 1 - 1/x)^N )/(N/x) ;
-w_d_below = (w_h-0.005):0.001:(w_h+0.005);
+w_d_below = (w_h-0.01):0.001:(w_h+0.01);
 len_w_d_below = length(w_d_below);
 
-
+bf = 0;    
+apply_all = 1;
+index = [];
 
 % ### White application behavior - Whites apply to all firms
 
 % Eliminate theta_l by writing as a function of theta_d and theta_h
 theta_l = @(theta_d, theta_h, x, y ) ( 1 - theta_d - (x-1).*theta_h )/y ;
 
-% theta_optimal = zeros(len_w_d_below + len_w_d_above, 3);
-
-% theta_optimal = ones(len_w_d_below, 3);
-
-apply_all = 1;
+theta_optimal = zeros(len_w_d_below, 3);
 
 for l=1:len_w_d_below;
      if apply_all == 1;
@@ -46,7 +42,7 @@ for l=1:len_w_d_below;
                                                         - w_h*binom_sum_constructor(N, i, theta(2))]...
                                                     , [0.5 0.5], [0 0], [1 1] );
         theta_optimal(l, 3) = theta_l( theta_optimal(l,1), theta_optimal(l,2), x, y);
-                if theta_optimal(l,3) < .0005, apply_all = 0; end; 
+        if theta_optimal(l,1) + theta_optimal(l,2) > .9995, apply_all = 0; end; 
     else
         theta_optimal(l, 1:2) = lsqnonlin( @(theta) [  w_d_below(l)*binom_sum_constructor(N, i, theta(1))...
                                                     - w_h*binom_sum_constructor(N, i, theta(2));...
@@ -58,6 +54,9 @@ end;
 
 
 % dtheta_d__dw_d computed exactly
+
+dtheta_d__dw_d = zeros(len_w_d_below, 1);
+
 dtheta_d__dw_d = binom_sum_constructor( N, i, theta_optimal(1:len_w_d_below,1) ) ./... 
                     (... 
                         transpose(w_d_below).*deriv_binom_sum_constructor( N, i, theta_optimal(1:len_w_d_below,1) ) -...
@@ -72,7 +71,8 @@ dtheta_d__dw_d = binom_sum_constructor( N, i, theta_optimal(1:len_w_d_below,1) )
                                     )...
                             );   
 
-
+dtheta_h__dw_d = zeros(len_w_d_below);
+                        
 dtheta_h__dw_d = - dtheta_d__dw_d .*(...
                                         (w_l/y)*deriv_binom_sum_constructor( N, i, theta_l(theta_optimal( 1:len_w_d_below,1), theta_optimal(1:len_w_d_below,2), x, y ) )...
                                             ./(...
@@ -131,26 +131,27 @@ end;
 
 % Original equilibrium
 
-pi_h = (1 - w_h)*(1 - (1 - 1/x)^N );
-
 d_pi__d_wd = - (1 - (1 - theta_optimal(:,1)).^N .* (1 - gamma_optimal(:,1)).^B )...
     + N*(1 - transpose(w_d_below)).*(1 - theta_optimal(:,1)).^(N-1) .* (1 - gamma_optimal(:, 1)).^B .*  dtheta_d__dw_d...
     + B*(1 - transpose(w_d_below)).*(1 - theta_optimal(:,1)).^N .* (1 - gamma_optimal(:,1)).^(B-1) .*  transpose(dgamma_d__dw_d) ;
 
     for t=2:len_w_d_below;
-        hi_cand = (w_h+t*0.001)-.0005;
+        hi_cand = w_d_below(t);
         low_cand = hi_cand*(1 - ( 1 - 1/x)^N )/(N/x);
         candidate = [hi_cand, low_cand];
-        if d_pi__d_wd(t) < 0 && d_pi__d_wd(t-1)>0;
+        if d_pi__d_wd(t) < 0 && d_pi__d_wd(t-1)>0; %  && (w_d_below(t)==w_h(k) | w_d_below(t+1)==w_h(k) | w_d_below(t-1)==w_h(k))
             bf = 1;
             break;
         end;
     end;
 
     if bf==1;
-        disp(candidate), break;
+        disp(candidate); 
+        pi_h = (1 - w_h)*(1 - (1 - 1/x)^N );
+        pi_l = (1 - w_l)*(1 - (1 - 1/y)^B );
+        disp([pi_h, pi_l]);
+        break;
     end;
-
 
 end;
 
