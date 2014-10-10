@@ -113,7 +113,11 @@ dtheta_h__dw_d = - dtheta_d__dw_d .*(...
                                             )...
                                     );
 
+dtheta_l__dw_d = zeros(len_w_d, 1);
+                                
 dtheta_l__dw_d = (1/y).*( - dtheta_d__dw_d - (x-1)*dtheta_h__dw_d) ;        
+
+
 
 % matrix of derivative of theta
 
@@ -132,9 +136,9 @@ plot(w_d, dtheta_l__dw_d(:,1))
 
 % ### theta derivatives as function handles
 
-dtheta_d__dw_d_below = @(w_d, w_h, w_l, x, y, N, i, theta_d, theta_h) binom_sum_constructor( N, i, theta_d ) ./... 
+fxn_dtheta_d__dw_d = @(w_d, w_h, w_l, x, y, N, i, theta_d, theta_h) binom_sum_constructor( N, i, theta_d ) ./... 
                     (... 
-                        w_d.*deriv_binom_sum_constructor( N, i, theta_d ) -...
+                        w_d.*deriv_binom_sum_constructor( N, i, theta_d ) - ...
                                 (... 
                                 w_h*deriv_binom_sum_constructor( N, i, theta_h).*...
                                     ( (w_l/y)*deriv_binom_sum_constructor( N, i, theta_l(theta_d, theta_h, x, y ) ) )...  
@@ -147,39 +151,80 @@ dtheta_d__dw_d_below = @(w_d, w_h, w_l, x, y, N, i, theta_d, theta_h) binom_sum_
                             );   
 
 % % dtheta_d__dw_d(0.365, 0.365, .213, x, y, N, i, 0.5, 0.5); % Not a number a number at the equilibrium!
- 
-dtheta_d__dw_d_above = @( w_d, w_h, x, N, i, theta_d) binom_sum_constructor(N,i,theta_d)/...
+% % IS THIS ERROR FROM THE FACT THAT theta_l IS ZERO? IT IS ZERO AND THEN
+% GETS NEGATIVE?
+
+fxn_dtheta_d__dw_d_above = @( w_d, w_h, x, N, i, theta_d) binom_sum_constructor(N,i,theta_d)/...
                             (...
                                 (w_h/(x-1))*deriv_binom_sum_constructor(N,i,theta_d)...
                                 + w_d*deriv_binom_sum_constructor(N,i,(1-theta_d)/(x-1))...
                             );
+
                         
-dtheta_d__dw_d_above(.3651,.3651,2,3,1,0.5)
+                        
+fxn_dtheta_h__dw_d = @(w_d, w_h, w_l, x, y, N, i, theta_d, theta_h, dtheta_d__dw_d) - dtheta_d__dw_d .*(...
+                                        (w_l/y)*deriv_binom_sum_constructor( N, i, theta_l(theta_d, theta_h, x, y ) )...
+                                            ./(...
+                                                w_h*deriv_binom_sum_constructor( N, i, theta_h )...
+                                                + (w_l*((x-1)/y)*deriv_binom_sum_constructor(N, i, theta_l(theta_d, theta_h, x, y ) ) )... 
+                                            )...
+                                    );
+
+fxn_dtheta_h__dw_d_above = @(x, dtheta_d__dw_d) -(1/(x-1))*dtheta_d__dw_d; 
+                             
+fxn_dtheta_l__dw_d = @( x, y, dtheta_d__dw_d, dtheta_h__dw_d) (1/y).*( - dtheta_d__dw_d - (x-1)*dtheta_h__dw_d) ;  
+                                
 
 
-binom_sum_constructor(3,1,0.5)
+% ### MINI TESTER FUNCTION
 
+i=1;
 
+% Market parameters
+N=3;
+B=2;
+x=2;
+y=2;
+% Wages in original equilibrium
+w_h = 0.3651;
+w_l = w_h*(1 - (1 - 1/x)^N ) / ( N / x); 
 
+w_d = transpose(w_h-.01:.001:w_h+.01) ;;
+len_w_d = length(w_d);
 
-% ### TESTER FUNCTION
+% Computing the optimal application probabilities for whites
 
-w_d = transpose(w_h-.01:.001:w_h+.01) ;
+theta_optimal = zeros(len_w_d, 3);
+apply_all = 1;
+
+for l=1:len_w_d;
+     if apply_all == 1;
+        theta_optimal(l,1:2) = lsqnonlin( @(theta) [ white_indiff_wd_wl( w_d(l), w_l, x, y, N, i, theta(1), theta(2) ); ...
+                                                     white_indiff_wd_wh( w_d(l), w_h, x, y, N, i, theta(1), theta(2) ) ]...
+                                                    , [0.5 0.5], [0 0], [1 1] );
+        theta_optimal(l, 3) = theta_l( theta_optimal(l,1), theta_optimal(l,2), x, y);
+        if theta_optimal(l,1) + theta_optimal(l,2) > .9995, apply_all = 0; end; 
+    else
+        theta_optimal(l, 1:2) = lsqnonlin( @(theta) [  white_indiff_wd_wh( w_d(l), w_h, x, y, N, i, theta(1), theta(2));...
+                                                theta(1) + (x-1)*theta(2) - 1 ]...
+                                                , [0.5 0.5], [0 0], [1 1] );
+        theta_optimal(l, 3) = 0;
+    end;
+end;
 
 d_theta_d__dw_d = zeros(length(w_d), 1);
 
-for i=1:21
+for l=1:21;
 
-    if w_d(i) < w_h; 
-        dtheta_d__dw_d(i) = dtheta_d__dw_d_below(w_d(i), w_h, w_l, x, y, N, i, theta_d, theta_h)
-        
-% % dtheta_d__dw_d(0.365, 0.365, .213, x, y, N, i, 0.5, 0.5); % Not a number a number at the equilibrium!
-    else;
-        dtheta_d__dw_d(i9 = dtheta_d__dw_d_above( w_d(i), w_h, x, N, i, theta_d)
+    if w_d(l) < w_h; 
+        dtheta_d__dw_d(l,1) = dtheta_d__dw_d_below( w_d(l), w_h, w_l, x, y, N, i, theta_optimal(l,1), theta_optimal(l,2));        
+    else
+        dtheta_d__dw_d(l,1) = dtheta_d__dw_d_above( w_d(l), w_h, x, N, i, theta_optimal(l,1) );
     end;
     
 end;
 
+plot(w_d, dtheta_d__dw_d)
 
 
 
@@ -188,6 +233,17 @@ end;
 
 
 
+
+
+
+
+
+
+
+
+
+w_d_hat = ((1 - theta_optimal(:,3))./(1 - theta_optimal(:,1))).^N * w_l *(binom_sum_constructor(B,i,(1/y))/B);
+index = w_d_hat < w_d;
 
 
 % ### Black application behavior - 
@@ -199,19 +255,75 @@ gamma_l = @(gamma_d, y) (1 - gamma_d)/(y-1);
 % Writing the indifference equations as function handles
 
 black_indiff_wd_wl = @(w_d, w_l, x, y, N, i, theta_d, theta_l, gamma_d) w_d * (1 - theta_d )^N * binom_sum_constructor(B, i, gamma_d)...
-    - (w_l)* (1 - theta_l)^N *binom_sum_constructor(B, i, gamma_l(gamma_d,y)) ;
+    - (w_l)* (1 - theta_l)^N *binom_sum_constructor(B, i, (1-gamma_d)/y) ;
 
-for j=1:len_w_d_below;
+dgamma_d__dw_d = zeros(len_w_d, 1)
+
+for j=1:len_w_d;
     if index(j) == 1
-        gamma_optimal(j, 1) = lsqnonlin( @(gamma) w_d_below(j)*(1 - theta_optimal(j, 1))^N*binom_sum_constructor(B, i, gamma)...
-                                                            - w_l*(1 - theta_optimal(j, 3))^N*binom_sum_constructor(B, i, (1-gamma)/y)...
-                                    , [0.25] , [0], [1] );
+        gamma_optimal(j, 1) = lsqnonlin( @(gamma) black_indiff_wd_wl(w_d(j), w_l, x, y, N, i, theta_optimal(j,1), theta_optimal(j,3), gamma),... 
+            0.25 , 0, 1 );
         gamma_optimal(j, 2) = 0 ;
         gamma_optimal(j, 3) = (1 - gamma_optimal(j,1))/y ; 
     else     
         gamma_optimal(j, :) = [0, 0, 1/y];
     end;
 end;
+
+plot( w_d, gamma_optimal(:,1))
+
+% Derivative 
+dgamma_d__dw_d = ( (1 - theta_optimal(:,1)).^N .* binom_sum_constructor(B, i, gamma_optimal(:,1))... 
+                    - w_d.*N.*(1 - theta_optimal(:,1)).^(N-1).*binom_sum_constructor(B, i, gamma_optimal(:,1)).*dtheta_d__dw_d  )...
+                    ./... 
+                    ( w_d.*( 1 - theta_optimal(:,1) ).^N .* deriv_binom_sum_constructor(B, i, gamma_optimal(:,1))... 
+                    + (w_l/y).*deriv_binom_sum_constructor(B, i, (1 - gamma_optimal(:,1))/y ) ) ;
+
+fxn_dgamma_d__dw_d = @(w_d, w_l, x, y, N, B, i, theta_d, dtheta_d__dw_d, gamma_d)( (1 - theta_d).^N .* binom_sum_constructor(B, i, gamma_d)... 
+                    - w_d.*N.*(1 - theta_d).^(N-1).*binom_sum_constructor(B, i, gamma_d).*dtheta_d__dw_d  )...
+                    ./... 
+                    ( w_d.*( 1 - theta_optimal(:,1) ).^N .* deriv_binom_sum_constructor(B, i, gamma_d)... 
+                    + (w_l/y).*deriv_binom_sum_constructor(B, i, (1 - gamma_d)/y ) ) ;
+
+
+                
+for j=1:len_w_d;
+    if index(j) == 1
+        gamma_optimal(j, 1) = lsqnonlin( @(gamma) w_d(j)*(1 - theta_optimal(j, 1))^N*binom_sum_constructor(B, i, gamma)...
+                                                            - w_l*(1 - theta_optimal(j, 3))^N*binom_sum_constructor(B, i, (1-gamma)/y)...
+                                    , 0.25 , 0, 1 );
+        gamma_optimal(j, 2) = 0 ;
+        gamma_optimal(j, 3) = (1 - gamma_optimal(j,1))/y ; 
+    else     
+        gamma_optimal(j, :) = [0, 0, 1/y];
+    end;
+end;
+
+black_indiff_wd_wl(w_d(7), w_l, x, y, N, i, theta_optimal(7,1), theta_optimal(7,3), .45)
+
+plot( w_d, gamma_d_optimal(:,1))
+
+
+
+           
+                
+
+
+% Derivative 
+dgamma_d__dw_d = ( (1 - theta_d_optimal).^N .* binom_sum_constructor(B, i, gamma_d_optimal_above) - w_d_above.*N.*(1 - theta_d_optimal).^(N-1).*binom_sum_constructor(B, i, gamma_d_optimal_above).*dtheta_d__dw_d  )...
+    ./ ( w_d_above.*( 1 - theta_d_optimal ).^N .* deriv_binom_sum_constructor(B, i, gamma_d_optimal_above) + (w_l/(y-1)).*deriv_binom_sum_constructor(B, i, gamma_l(gamma_d_optimal_above, y) ) ) ;
+
+% approximated derivative 
+p_gamma = polyfit(w_d_above, gamma_d_optimal_above, 4);
+p_gamma_fit = polyval(p_gamma, w_d_above);
+dgamma_dwd = @(w_d) 4*p_gamma(1)*w_d.^3 + 3*p_gamma(2)*w_d.^2 + 2*p_gamma(3)*w_d + p_gamma(4);
+test_gamma = dgamma_dwd(w_d_above);
+
+plot(w_d_above, test_gamma)
+hold on
+plot(w_d_above, dgamma_d__dw_d) % These derivatives are interesting, and curved, and match, but deviate a bit near the boundaries. 
+
+
 
 
 
@@ -283,11 +395,11 @@ dgamma_d__dw_d = ( (1 - theta_d_optimal).^N .* binom_sum_constructor(B, i, gamma
 % region do not affect the application probabilities
 
 
-d_pi__d_wd = - (1 - (1 - theta_d_optimal).^N .* (1 - gamma_d_optimal).^B ) + ...
-    (1 - w_d_above).*N.*(1 - theta_d_optimal).^(N-1).*(1 - gamma_d_optimal).^B .* dtheta_d__dw_d + ...
-    (1 - w_d_above).*(1 - theta_d_optimal).^N .*B.* (1 - gamma_d_optimal).^(B-1) .* dgamma_d__dw_d ;
+d_pi__d_wd = - (1 - (1 - theta_optimal(:,1)).^N .* (1 - gamma_optimal(:,1)).^B ) + ...
+    (1 - w_d).*N.*(1 - theta_optimal(:,1)).^(N-1).*(1 - gamma_optimal(:,1)).^B .* dtheta_d__dw_d + ...
+    (1 - w_d).*(1 - theta_optimal(:,1)).^N .*B.* (1 - gamma_optimal(:,1)).^(B-1) .* dgamma_d__dw_d ;
 
-plot(w_d_above, d_pi__d_wd)
+plot(w_d, d_pi__d_wd)
 
 
 

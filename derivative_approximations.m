@@ -11,7 +11,7 @@ y=2;
 w_h = 0.3651;
 w_l = w_h*(1 - (1 - 1/x)^N ) / ( N / x); 
 
-w_d_above = (w_l+0.001):0.001:(w_h-0.01);
+w_d_above = transpose((w_l+0.001):0.001:(w_h-0.01));
 len_w_d_above = length(w_d_above);
 w_d_below = (w_l-0.05):0.001:(w_l);
 len_w_d_below = length(w_d_below);

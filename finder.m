@@ -73,19 +73,19 @@ fxn_dgamma_d__dw_d = @(w_d, w_l, x, y, N, B, i, theta_d, dtheta_d__dw_d, gamma_d
 i=1;
 
 % Market parameters
-N=3;
-B=2;
-x=3;
-y=2;
+N=30;
+B=20;
+x=18;
+y=22;
 
-w_h_value=0.10:0.01:0.51;
+w_h_value=0.376:0.01:0.379;
 w_h_val_length = length(w_h_value);
 
 for k=1:w_h_val_length;
     
 w_h = w_h_value(k);     
 w_l = w_h*(1 - ( 1 - 1/x)^N )/(N/x) ;
-w_d = transpose((w_h-0.15):0.001:(w_h+0.15));
+w_d = transpose((w_h-0.25):0.001:(w_h+0.25));
 len_w_d = length(w_d);
 
 bf = 0;    
@@ -113,7 +113,7 @@ for l=1:len_w_d;
         dtheta_dwd( l, 2) = fxn_dtheta_h__dw_d(w_d(l), w_h, w_l, x, y, N, i, theta_optimal(l,1), theta_optimal(l,2), dtheta_dwd(l,1));
         dtheta_dwd( l, 3) = fxn_dtheta_l__dw_d( x, y, dtheta_dwd(l,1), dtheta_dwd(l,2));
         
-        if theta_optimal(l,1) + theta_optimal(l,2) > .99999, apply_all = 0; end; 
+        if (theta_optimal(l,3) < 0.0005), apply_all = 0; end; 
     
     else
         theta_optimal(l, 1:2) = lsqnonlin( @(theta) [  white_indiff_wd_wh( w_d(l), w_h, x, y, N, i, theta(1), theta(2));...
@@ -128,6 +128,7 @@ for l=1:len_w_d;
     end;
     
 end;
+
 
 % Application index
 w_d_hat = ((1 - theta_optimal(:,3))./(1 - theta_optimal(:,1))).^N * w_l *(binom_sum_constructor(B,i,(1/y))/B);
@@ -166,7 +167,7 @@ d_pi__d_wd = - (1 - (1 - theta_optimal(:,1)).^N .* (1 - gamma_optimal(:,1)).^B )
     (1 - w_d).*(1 - theta_optimal(:,1)).^N .*B.* (1 - gamma_optimal(:,1)).^(B-1) .* dgamma_dwd ;
 
     
-    for t=(149):1:(152);
+    for t=(249):1:(252);
         hi_cand = w_d(t-1);
         low_cand = hi_cand*(1 - ( 1 - 1/x)^N )/(N/x);
         candidate = [hi_cand, low_cand];
